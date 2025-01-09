@@ -35,14 +35,14 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # General parameters
-MODEL_NAME = 'pose_anomaly_model'
+MODEL_NAME = 'face_landmark_cls'
 WORKING_DIR = "workspace"
 NORMAL_DATA_PATH = os.path.join('dataset', 'Normal_Face_XY_normal.npy')
-ANORMALY_DATA_PATH = os.path.join('dataset', 'abnormal_Face_XY_normal.npy')
+ANORMALY_DATA_PATH = os.path.join('dataset', 'Abnormal_Face_XY_normal.npy')
 
 # Model parameters
-DATA_FEATURES_XYZ = 936
-DATA_FEATURES_XY = 624
+DATA_FEATURES_XYZ = 1404
+DATA_FEATURES_XY = 936
 MODEL_INPUT_SHAPE = DATA_FEATURES_XY
 MODEL_CLASS_NUM = 2
 
@@ -76,12 +76,21 @@ class MyCallback(tf.keras.callbacks.Callback):
             current_lr =learning_rate
         print(f" lr for epoch {epoch + 1} is {current_lr.numpy():.8f}")
 
-def main():
+def main(flags):
     """
     Main function to load data, train a neural network model, evaluate it, and convert it to TensorFlow Lite format.
     Returns:
     None
     """
+
+    # create the project folder
+    proj_path = os.path.join(WORKING_DIR, flags.out_proj_name)
+    try:
+        os.makedirs(proj_path, exist_ok=True)
+        print(f"Project folder '{proj_path}' created successfully.")
+    except OSError as e:
+        print(f"Error creating folder '{proj_path}': {e}")
+
     # load the data
     with open(NORMAL_DATA_PATH, 'rb') as f:
         normal_data = np.load(f)
@@ -109,32 +118,34 @@ def main():
     outputs = tf.keras.layers.Dense(MODEL_CLASS_NUM, activation='softmax', kernel_initializer='random_uniform')(x)
     model = tf.keras.Model(inputs, outputs)
 
-    # A constant piecewise decay way to help learning. But the result is not as good as easy one.
-    #steps_num = (train_data.shape[1] * (1 - VALIDATION_SPLIT)) / BATCH_SIZE
-    #total_steps = EPOCHS * steps_num
-    #lr_boundary_list = [int(total_steps * 0.1), int(total_steps * 0.75)]
-    #learning_rates_list = [0.0005, 0.0002, 0.0001]
-    #lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=lr_boundary_list, values=learning_rates_list)
-    #optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-
-    # Easy way to set learning rate, but result is better.
-    optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002)
+    if flags.con_pw_decay:
+        # A constant piecewise decay way to help learning. But the result is not as good as easy one.
+        steps_num = (train_data.shape[1] * (1 - VALIDATION_SPLIT)) / BATCH_SIZE
+        total_steps = EPOCHS * steps_num
+        lr_boundary_list = [int(total_steps * 0.1), int(total_steps * 0.75)]
+        learning_rates_list = [0.0005, 0.0002, 0.0001]
+        lr_schedule = tf.keras.optimizers.schedules.PiecewiseConstantDecay(boundaries=lr_boundary_list, values=learning_rates_list)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+    else:
+        # Easy way to set learning rate, but result is better.
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.0002)
 
     model.compile(optimizer=optimizer,
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                   metrics=['accuracy'])
     model.summary()
 
-    model.fit(train_data , train_labels , epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT,
+    if flags.con_pw_decay:
+        # A constant piecewise decay way and steps_per_epoch
+        model.fit(train_data, train_labels ,steps_per_epoch=steps_num,
+                         epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT,
+                         callbacks=[MyCallback()])
+    else:
+        model.fit(train_data , train_labels , epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT,
                      callbacks=[MyCallback()])
 
-    # A constant piecewise decay way and steps_per_epoch
-    #hist = model.fit(train_data, train_labels ,steps_per_epoch=steps_num,
-    #                 epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=VALIDATION_SPLIT,
-    #                 callbacks=[MyCallback()])
-
     # save the model
-    tf.saved_model.save(model, os.path.join(WORKING_DIR, MODEL_NAME))
+    tf.saved_model.save(model, os.path.join(proj_path, MODEL_NAME))
 
     # test result
     dnn_model = model  # pass the model in order to be used latter
@@ -148,7 +159,7 @@ def main():
     # The top and bottom of heatmap gets trimmed off so to prevent that we set ylim
     bottom, top = ax.get_ylim()
     ax.set_ylim(bottom + 0.5, top - 0.5)
-    plt.savefig(os.path.join(WORKING_DIR,"confusion_matrix.jpg"), dpi=200)
+    plt.savefig(os.path.join(proj_path, "confusion_matrix.jpg"), dpi=200)
 
     pred = y_pred.astype(int)
 
@@ -173,7 +184,7 @@ def main():
     converter.inference_input_type = tf.int8  # or tf.uint8
     converter.inference_output_type = tf.int8  # or tf.uint8
     tflite_model = converter.convert()
-    output_location = os.path.join(WORKING_DIR, (MODEL_NAME + r'_int8quant.tflite'))
+    output_location = os.path.join(proj_path, (MODEL_NAME + r'_int8.tflite'))
     with open(output_location, 'wb') as f:
         f.write(tflite_model)
         print(f"The tflite output location: {output_location}")
@@ -181,6 +192,15 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--con_pw_decay',
+        action='store_true',
+        help='Whether to use constant piecewise decay way and steps_per_epoch.')
+    parser.add_argument(
+        '--out_proj_name, -o',
+        type=str,
+        default = r'XY_normalized',
+        help='projet name in workspace.')
 
     FLAGS, _ = parser.parse_known_args()
-    main()
+    main(FLAGS)

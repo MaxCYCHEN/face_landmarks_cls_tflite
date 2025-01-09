@@ -10,39 +10,59 @@ Usage:
         --txt_path: Path to the input text file containing face landmarks data.
         --output_path: Path to save the output numpy array file.
         --minmax_nor: Whether to use minmax normalization (default: True).
-        --xy_only: Whether to use only X and Y coordinates (default: True).
 '''
 import argparse
 import numpy as np
 
 MODEL_OUTPUT_SHAPE = 936
 
+class ParserFlagsException(Exception):
+    """
+    Exception raised for errors in the parser flags.
+    """
+    def __init__(self, message: str):
+        super().__init__(message)
+
 def minmax_normalize(numbers_int: list):
     """
-    Normalize a list of integers using min-max normalization for 3D coordinates.
-    This function takes a list of integers representing 3D coordinates (X, Y, Z) 
-    and normalizes each coordinate independently using min-max normalization. 
-    The normalization is performed separately for X, Y, and Z coordinates.
+    Normalize a list of integers using min-max normalization.
+    This function takes a list of integers and normalizes the values in the list
+    such that the minimum value becomes 0 and the maximum value becomes 1. The 
+    normalization is performed separately for the even-indexed and odd-indexed 
+    elements in the list.
     Args:
-        numbers_int (list): A list of integers representing 3D coordinates. 
-                            The list should be structured such that every third 
-                            element corresponds to the same coordinate axis 
-                            (e.g., [X1, Y1, Z1, X2, Y2, Z2, ...]).
+        numbers_int (list): A list of integers to be normalized.
     Returns:
-        list: A list of normalized integers where each coordinate axis has been 
-              normalized independently.
+        list: A list of normalized integers.
     """
     def normalize_1d(ix, numbers_int):
 
-        min_value = min(numbers_int[ix::3])
-        max_value = max(numbers_int[ix::3])
+        min_value = min(numbers_int[ix::2])
+        max_value = max(numbers_int[ix::2])
         def normalize(x):
             return (x - min_value) / (max_value - min_value)
-        numbers_int = [normalize(num) if idx % 3 == ix else num for idx, num in enumerate(numbers_int)]
+        numbers_int = [normalize(num) if idx % 2 == ix else num for idx, num in enumerate(numbers_int)]
         return numbers_int
     numbers_int = normalize_1d(0, numbers_int) # normalize X
     numbers_int = normalize_1d(1, numbers_int) # normalize Y
-    numbers_int = normalize_1d(2, numbers_int) # normalize Z
+
+    return numbers_int
+
+def forehead_relatively_normalize(numbers_int: list):
+    """
+    Normalize a list of integers relative to the forehead coordinates.
+    Args:
+        numbers_int (list): A list of integers to be normalized.
+    Returns:
+        list: A list of normalized integers.
+    """
+
+    forehead_x = numbers_int[0]
+    forehead_y = numbers_int[1]
+    img_scale_x = 192.0
+    img_scale_y = 192.0
+
+    numbers_int = [(num - forehead_x)/img_scale_x if idx % 2 == 0 else (num - forehead_y)/img_scale_y for idx, num in enumerate(numbers_int)]
 
     return numbers_int
 
@@ -69,12 +89,12 @@ def main(flags):
             numbers_int = [ int(s.strip()) for s in  numbers]
 
             # minmax normalization
-            if flags.minmax_nor:
+            if flags.minmax_norm:
                 numbers_int = minmax_normalize(numbers_int)
 
-            # remove the z axis
-            if flags.xy_only:
-                numbers_int = [num for idx, num in enumerate(numbers_int) if idx % 3 != 2]
+            # forehead relatively normalization
+            if flags.forehead_norm:
+                numbers_int = forehead_relatively_normalize(numbers_int)
 
             landmarks.append(numbers_int)
         else:
@@ -87,25 +107,27 @@ def main(flags):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--txt_path',
+        '--txt_path, -t',
         type=str,
         default = r'dataset\Normal_Face.txt',
         help='Path to txt file.')
     parser.add_argument(
-        '--output_path',
+        '--output_path, -o',
         type=str,
         default = r'dataset\Normal_Face_XY_normal.npy',
         help='Path used for the output file.')
     parser.add_argument(
-        '--minmax_nor',
-        type=bool,
-        default = True,
+        '--minmax_norm',
+        action='store_true',
         help='Whether to use minmax normalization.')
     parser.add_argument(
-        '--xy_only',
-        type=bool,
-        default = True,
-        help='Whether to use only X and Y coordinates.')
+        '--forehead_norm',
+        action='store_true',
+        help='Whether to use forehead relatively normalization.')
 
     FLAGS, _ = parser.parse_known_args()
+
+    if FLAGS.minmax_norm and FLAGS.forehead_norm:
+        raise ParserFlagsException("Both minmax_norm and forehead_norm flags are set! Please set only one of them.")
+
     main(FLAGS)

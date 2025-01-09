@@ -22,7 +22,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 NORMAL_DATA_PATH = os.path.join('dataset', 'Normal_Face_XY.npy')
-ANORMALY_DATA_PATH = os.path.join('dataset', 'abnormal_Face_XY.npy')
+ANORMALY_DATA_PATH = os.path.join('dataset', 'Abnormal_Face_XY.npy')
 
 # Function to convert an array into a C string (requires Numpy)
 
@@ -144,7 +144,7 @@ def main(flags: argparse.Namespace):
     how_many_test = test_data.shape[0]
 
     x_test = test_data[:how_many_test, :]
-    x_test_str = create_array(x_test, "int8_t", "X_test")
+    x_test_str = create_array(x_test, "uint8_t", "X_test")
 
     y_test = test_labels[:how_many_test].astype(int)
     y_test_str = create_array(y_test, "uint8_t", "y_test")

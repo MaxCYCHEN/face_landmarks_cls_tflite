@@ -16,13 +16,13 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 
 # Model parameters
-DATA_FEATURES_XYZ = 936
-DATA_FEATURES_XY = 624
+DATA_FEATURES_XYZ = 1404
+DATA_FEATURES_XY = 936
 MODEL_INPUT_SHAPE = DATA_FEATURES_XY
 MODEL_CLASS_NUM = 2
 
 NORMAL_DATA_PATH = os.path.join('dataset', 'Normal_Face_XY_normal.npy')
-ANORMALY_DATA_PATH = os.path.join('dataset', 'abnormal_Face_XY_normal.npy')
+ANORMALY_DATA_PATH = os.path.join('dataset', 'Abnormal_Face_XY_normal.npy')
 
 def tflite_inference(input_data: np.ndarray, tflite_path: str):
     """Call forwards pass of TFLite file and returns the result.
@@ -108,6 +108,9 @@ def main(flags: argparse.Namespace):
 
     for data, label in zip(test_data, test_labels):  # pylint: disable=unused-variable
         data = tf.cast(data, tf.float32) # Ensure data is float32
+
+        print(data[0], data[1], data[2], data[3])
+
         prediction = tflite_inference(tf.expand_dims(data, axis=0), tflite_path)
         predicted_indices.append(np.squeeze(tf.argmax(prediction, axis=1)))
 
@@ -121,7 +124,7 @@ def main(flags: argparse.Namespace):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--tflite_path',
+        '--tflite_path, -t',
         type=str,
         default=r'workspace/XY_normalized/pose_anomaly_model_int8quant.tflite',
         help='Path to tflite file.')
