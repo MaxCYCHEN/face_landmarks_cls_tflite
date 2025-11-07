@@ -197,7 +197,8 @@ if __name__ == '__main__':
         action='store_true',
         help='Whether to use constant piecewise decay way and steps_per_epoch.')
     parser.add_argument(
-        '--out_proj_name, -o',
+        '--out_proj_name',
+        '-o',
         type=str,
         default = r'XY_normalized',
         help='projet name in workspace.')

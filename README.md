@@ -12,7 +12,7 @@ python facelandmarks_parser.py -t <INPUT_TEXT_FILE> -o <OUTPUT_FILE> --minmax_no
 ```
 - Example: 
 ```bash
-python facelandmarks_parser.py -t dataset\Normal_Face.txt -o dataset\Normal_Face_XY_normal.npy --minmax_norm`
+python facelandmarks_parser.py -t dataset\Normal_Face.txt -o dataset\Normal_Face_XY_normal.npy --minmax_norm
 ```
 ### 3. Train
 - This script trains the face landmark classification model and converts it to an INT8 TFLite model.
@@ -21,7 +21,7 @@ python train.py  -o <OUTPUT_PROJECT_NAME>
 ```
 - Example: 
 ```bash
-python train.py -o XY_normalized`
+python train.py -o XY_normalized
 ```
 
 ### 4. Test TFLite

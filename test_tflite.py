@@ -124,7 +124,8 @@ def main(flags: argparse.Namespace):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--tflite_path, -t',
+        '--tflite_path', 
+        '-t',
         type=str,
         default=r'workspace/XY_normalized/pose_anomaly_model_int8quant.tflite',
         help='Path to tflite file.')

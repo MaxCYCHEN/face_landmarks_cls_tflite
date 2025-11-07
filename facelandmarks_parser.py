@@ -107,12 +107,14 @@ def main(flags):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--txt_path, -t',
+        '--txt_path',
+        '-t',
         type=str,
         default = r'dataset\Normal_Face.txt',
         help='Path to txt file.')
     parser.add_argument(
-        '--output_path, -o',
+        '--output_path',
+        '-o',
         type=str,
         default = r'dataset\Normal_Face_XY_normal.npy',
         help='Path used for the output file.')
